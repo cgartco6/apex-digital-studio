@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-
 const userSchema = new mongoose.Schema({
   firstName: {
     type: String,
@@ -191,3 +190,171 @@ userSchema.index({ createdAt: -1 });
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;
+// Add to User schema
+const userSchema = new mongoose.Schema({
+  // ... existing fields ...
+  
+  marketplaceStats: {
+    seller: {
+      listings: {
+        total: { type: Number, default: 0 },
+        active: { type: Number, default: 0 },
+        sold: { type: Number, default: 0 }
+      },
+      earnings: {
+        total: { type: Number, default: 0 },
+        pending: { type: Number, default: 0 },
+        available: { type: Number, default: 0 }
+      },
+      rating: {
+        average: { type: Number, default: 0 },
+        count: { type: Number, default: 0 },
+        breakdown: {
+          1: { type: Number, default: 0 },
+          2: { type: Number, default: 0 },
+          3: { type: Number, default: 0 },
+          4: { type: Number, default: 0 },
+          5: { type: Number, default: 0 }
+        }
+      },
+      trustLevel: {
+        type: String,
+        enum: ['new', 'verified', 'trusted', 'featured', 'power'],
+        default: 'new'
+      },
+      badges: [{
+        type: String,
+        enum: [
+          'top_seller',
+          'fast_delivery',
+          'great_support',
+          'quality_designer',
+          'ai_expert',
+          'trend_setter',
+          'community_leader'
+        ]
+      }]
+    },
+    buyer: {
+      purchases: { type: Number, default: 0 },
+      totalSpent: { type: Number, default: 0 },
+      favoriteCategories: [String],
+      wishlist: [{
+        type: Schema.Types.ObjectId,
+        ref: 'MarketplaceListing'
+      }]
+    },
+    affiliate: {
+      code: String,
+      referrals: { type: Number, default: 0 },
+      earnings: { type: Number, default: 0 },
+      converted: { type: Number, default: 0 }
+    }
+  },
+  
+  wallet: {
+    balance: { type: Number, default: 0 },
+    pending: { type: Number, default: 0 },
+    currency: { type: String, default: 'ZAR' },
+    transactions: [{
+      type: {
+        type: String,
+        enum: ['sale', 'purchase', 'withdrawal', 'deposit', 'refund', 'commission']
+      },
+      amount: Number,
+      description: String,
+      reference: String,
+      status: {
+        type: String,
+        enum: ['pending', 'completed', 'failed'],
+        default: 'pending'
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      }
+    }]
+  },
+  
+  // ... rest of schema ...
+});
+
+// Add method to update seller rating
+userSchema.methods.updateSellerRating = async function() {
+  const Order = mongoose.model('MarketplaceOrder');
+  
+  const stats = await Order.aggregate([
+    { $match: { seller: this._id, 'review.rating': { $exists: true } } },
+    {
+      $group: {
+        _id: null,
+        average: { $avg: '$review.rating' },
+        count: { $sum: 1 },
+        breakdown: {
+          $push: '$review.rating'
+        }
+      }
+    }
+  ]);
+  
+  if (stats.length > 0) {
+    const breakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    stats[0].breakdown.forEach(rating => {
+      const key = Math.round(rating);
+      if (breakdown[key] !== undefined) {
+        breakdown[key]++;
+      }
+    });
+    
+    this.marketplaceStats.seller.rating = {
+      average: stats[0].average,
+      count: stats[0].count,
+      breakdown
+    };
+    
+    // Update trust level based on rating and sales
+    const totalSales = this.marketplaceStats.seller.listings.sold;
+    if (totalSales >= 100 && stats[0].average >= 4.8) {
+      this.marketplaceStats.seller.trustLevel = 'power';
+    } else if (totalSales >= 50 && stats[0].average >= 4.5) {
+      this.marketplaceStats.seller.trustLevel = 'featured';
+    } else if (totalSales >= 20 && stats[0].average >= 4.0) {
+      this.marketplaceStats.seller.trustLevel = 'trusted';
+    } else if (totalSales >= 5) {
+      this.marketplaceStats.seller.trustLevel = 'verified';
+    }
+    
+    await this.save();
+  }
+};
+
+// Add method to withdraw earnings
+userSchema.methods.withdrawEarnings = async function(amount, method, details) {
+  if (amount > this.marketplaceStats.seller.earnings.available) {
+    throw new Error('Insufficient available earnings');
+  }
+  
+  this.wallet.balance -= amount;
+  this.marketplaceStats.seller.earnings.available -= amount;
+  
+  this.wallet.transactions.push({
+    type: 'withdrawal',
+    amount: -amount,
+    description: `Withdrawal via ${method}`,
+    reference: `WD-${Date.now()}`,
+    status: 'pending',
+    metadata: details
+  });
+  
+  await this.save();
+  
+  // Process withdrawal (this would integrate with payment provider)
+  // For now, auto-complete after 1 minute
+  setTimeout(async () => {
+    const transaction = this.wallet.transactions[this.wallet.transactions.length - 1];
+    transaction.status = 'completed';
+    await this.save();
+  }, 60000);
+  
+  return this.wallet.transactions[this.wallet.transactions.length - 1];
+};
