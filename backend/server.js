@@ -7,6 +7,45 @@ const morgan = require('morgan');
 const compression = require('compression');
 const socketIo = require('socket.io');
 const http = require('http');
+// Add after other imports
+const revenueTracker = require('./services/revenueTracker');
+
+// Add middleware to track revenue
+app.use('/api/orders', (req, res, next) => {
+  const originalSend = res.send;
+  res.send = function(data) {
+    if (req.method === 'POST' && res.statusCode === 201) {
+      try {
+        const order = JSON.parse(data).data;
+        revenueTracker.trackRevenue(order);
+      } catch (error) {
+        console.error('Revenue tracking error:', error);
+      }
+    }
+    originalSend.apply(res, arguments);
+  };
+  next();
+});
+
+// Add revenue endpoint
+app.get('/api/revenue/metrics', authMiddleware.protect, authMiddleware.restrictTo('admin'), async (req, res) => {
+  try {
+    const metrics = revenueTracker.getCurrentMetrics();
+    res.json({ success: true, data: metrics });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get('/api/revenue/report', authMiddleware.protect, authMiddleware.restrictTo('admin'), async (req, res) => {
+  try {
+    const { period, startDate, endDate } = req.query;
+    const report = await revenueTracker.generateRevenueReport(period, startDate, endDate);
+    res.json({ success: true, data: report });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // Load environment variables
 dotenv.config();
