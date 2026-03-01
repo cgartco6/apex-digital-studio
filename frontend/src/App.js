@@ -3,10 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-// Add this after other imports
 import GamificationOverlay from './components/gamification/GamificationOverlay';
 import { AddictionProvider } from './context/AddictionContext';
-// Add new routes
 import CourseLanding from './pages/CourseLanding';
 import ReferralDashboard from './pages/ReferralDashboard';
 
