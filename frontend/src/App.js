@@ -6,6 +6,13 @@ import { PersistGate } from 'redux-persist/integration/react';
 // Add this after other imports
 import GamificationOverlay from './components/gamification/GamificationOverlay';
 import { AddictionProvider } from './context/AddictionContext';
+// Add new routes
+import CourseLanding from './pages/CourseLanding';
+import ReferralDashboard from './pages/ReferralDashboard';
+
+// Add to routes
+<Route path="/course" element={<CourseLanding />} />
+<Route path="/referral" element={<ReferralDashboard />} />
 
 // Wrap the entire app with AddictionProvider
 function App() {
