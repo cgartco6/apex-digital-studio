@@ -695,3 +695,8 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+async def generate_marketplace_promotions(self, top_listings):
+    """Generate promotional content for marketplace listings"""
+    for listing in top_listings:
+        content = await self._generate_listing_promotion(listing)
+        # Schedule posts across platforms
