@@ -8,6 +8,20 @@ const compression = require('compression');
 const socketIo = require('socket.io');
 const http = require('http');
 const path = require('path');
+const designStudio = require('./services/designStudio');
+const marketingStudio = require('./services/marketingStudio');
+const brandingStudio = require('./services/brandingStudio');
+const megsService = require('./services/megsService');
+
+// Socket.IO namespace for Megs
+const megsNamespace = io.of('/megs');
+megsNamespace.use(authMiddleware.socketAuth);
+megsNamespace.on('connection', (socket) => {
+  socket.on('message', async (data) => {
+    const response = await megsService.processMessage(data.userId, data.message);
+    socket.emit('message', response.message);
+  });
+});
 
 // Load environment variables
 dotenv.config();
