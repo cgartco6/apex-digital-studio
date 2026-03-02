@@ -203,3 +203,5 @@ server.listen(PORT, () => {
 
 // Export for testing
 module.exports = { app, server };
+// Add this after other route imports
+app.use('/api/marketplace', require('./routes/marketplace.routes'));
