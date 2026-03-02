@@ -150,3 +150,4 @@ server.listen(PORT, () => {
 
 // Export for testing
 module.exports = { app, server };
+app.use('/api/admin/payouts', require('./routes/payout.routes'));
