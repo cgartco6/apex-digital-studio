@@ -235,3 +235,6 @@ orderSchema.index({ 'paymentDetails.transactionId': 1 });
 const Order = mongoose.model('Order', orderSchema);
 
 module.exports = Order;
+// Add to orderSchema
+payoutProcessed: { type: Boolean, default: false },
+payoutWeek: { type: String }, // e.g., '2025-W12'
